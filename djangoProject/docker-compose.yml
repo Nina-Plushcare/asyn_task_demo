@@ -1,0 +1,62 @@
+version: "3"
+services:
+  # Redis
+  redis:
+    image: redis:6.0.6
+    hostname: redis
+    ports:
+      - "6379:6379"
+  # RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3.8-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  # Django
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - pgdb
+    environment:
+      - DEBUG=1
+      - DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1
+      - CELERY_BROKER=redis://redis:6379/0
+      - CELERY_BACKEND=redis://redis:6379/0
+    restart: always
+  # Celery
+  celery:
+    container_name: celery
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A app worker --loglevel INFO
+    volumes:
+      - .:/usr/src/app
+    depends_on:
+      - redis
+      - app
+
+  pgdb:
+    image: postgres:11.6
+    container_name: pgdb
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

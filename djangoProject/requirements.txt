@@ -1,0 +1,5 @@
+amqp
+celery
+Django
+psycopg2-binary
+redis
